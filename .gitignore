@@ -1,0 +1,19 @@
+node_modules
+scripts
+test
+.vscode
+.env
+coverage
+coverage.json
+typechain
+typechain-types
+
+# Hardhat files
+cache
+artifacts
+hardhat.config.test
+hardhat.config.ts
+package-lock.json
+package.json
+tsconfig.json
+
