@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@chainlink/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol";
 
 contract CoinFlipV2 is VRFV2WrapperConsumerBase, Ownable {
@@ -27,20 +28,28 @@ contract CoinFlipV2 is VRFV2WrapperConsumerBase, Ownable {
     address constant linkAddr = 0x779877A7B0D9E8603169DdbD7836e478b4624789;
     address constant vrfWrapperAddr =
         0xab18414CD93297B0d12ac29E63Ca20f515b3DB46;
-
-    uint128 constant entryFees = 0.001 ether;
+    address token;
+    uint256 constant entryFees = 0.5 * 10 ** 6;
     uint32 constant callbackGasLimit = 1_000_000;
     uint32 constant numWords = 1;
     uint16 constant requestConfirmations = 3;
 
-    constructor()
+    constructor(
+        address _token
+    )
         payable
         VRFV2WrapperConsumerBase(linkAddr, vrfWrapperAddr)
         Ownable(msg.sender)
-    {}
+    {
+        token = _token;
+    }
 
-    function flip(CoinFlipSelection choice) external payable returns (uint256) {
-        require(msg.value == entryFees, "Entry fees not enough");
+    function flip(
+        CoinFlipSelection choice,
+        uint256 amount
+    ) external returns (uint256) {
+        require(amount == entryFees, "Entry fees not enough");
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
 
         uint256 requestId = requestRandomness(
             callbackGasLimit,
@@ -73,7 +82,7 @@ contract CoinFlipV2 is VRFV2WrapperConsumerBase, Ownable {
             : CoinFlipSelection.TAILS;
         if (result == statuses[requestId].choice) {
             statuses[requestId].isWin = true;
-            payable(statuses[requestId].player).transfer(entryFees * 2);
+            IERC20(token).transfer(statuses[requestId].player, entryFees * 2);
         }
 
         emit CoinFlipResult(requestId, statuses[requestId].isWin);
@@ -89,4 +98,6 @@ contract CoinFlipV2 is VRFV2WrapperConsumerBase, Ownable {
         address payable to = payable(msg.sender);
         to.transfer(address(this).balance);
     }
+
+    receive() external payable {}
 }
